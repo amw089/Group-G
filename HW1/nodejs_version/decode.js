@@ -1,44 +1,7 @@
-// Splits a given file into smaller subfiles by line number
-var infileName = 'dictionary.txt';
-var fileCount = 1;
-var count = 0;
-var fs = require('fs');
-var outStream;
-var outfileName = infileName + '.' + fileCount;
-newWriteStream();
-var inStream = fs.createReadStream(infileName);
-
-var lineReader = require('readline').createInterface({
-    input: inStream
-});
-
-function newWriteStream(){
-    outfileName = infileName + '.' + fileCount;
-    outStream = fs.createWriteStream(outfileName);
-    count = 0;
-}
-
-lineReader.on('line', function(line) {
-    count++;
-    outStream.write(line + '\n');
-    if (count >= 7600) {
-        fileCount++;
-        outStream.end();
-        newWriteStream();
-    }
-});
-
-lineReader.on('close', function() {
-    if (count > 0) {
-    }
-    inStream.close();
-    outStream.end();
-    console.log('Done');
-});
-
-
 //uuidv5
 var crypto = require('crypto');
+const pass_hashTable = new Map();
+const uuidV5_hashTable = new Map();
 
 function uuidV5(namespace, name) {
   var hexNm = namespace.replace(/[{}\-]/g, '');
@@ -54,23 +17,15 @@ function uuidV5(namespace, name) {
       hash.substr(20,12);
 }
 
-const pass_hashTable = new Map();
-const uuidV5_hashTable = new Map();
+function populate_hashmap() {
+	var lineReader = require('readline').createInterface({
+	input: require('fs').createReadStream('dictionary.txt')//+cntr)
+	});
 
-function populate() {
-	var cntr = 1
-	while(cntr<fileCount) {
-		var lineReader = require('readline').createInterface({
-		input: require('fs').createReadStream('dictionary.txt.'+cntr)
-		});
-
-		lineReader.on('line', function (line) {
-		passhash = require("crypto").createHash("sha256").update(line).digest("hex").toUpperCase();
-		pass_hashTable.set(passhash,line)
-		});
-
-		cntr++	
-	}
+	lineReader.on('line', function (line) {
+	passhash = require("crypto").createHash("sha256").update(line).digest("hex").toUpperCase();
+	pass_hashTable.set(passhash,line)
+	});
 	
 	var namespaceString = "d9b2d63d-a233-4123-847a-76838bf2413a";
 
@@ -79,7 +34,6 @@ function populate() {
 	});
 
 	lineReader.on('line', function (line) {
-
 	uuidhash = uuidV5(namespaceString,line);
 	uuidV5_hashTable.set(uuidhash,line);
 	});;
@@ -118,11 +72,9 @@ function io_dump() {
 
 // Start of program after hastables creation
 
-setTimeout(populate,400)
-
+populate_hashmap()
 if (process.argv[2] == null) {
 	console.log("Usage "+ process.argv[1] +"<dump_file.csv>");
 	process.exit(1);
 }
-setTimeout(io_dump,500)
-
+setTimeout(io_dump,410)
