@@ -1,1 +1,2 @@
-# TEAM PINK/DARK RED
+# Group G
+HW1.
