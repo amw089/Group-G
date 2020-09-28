@@ -19,7 +19,7 @@ function uuidV5(namespace, name) {
       hash.substr(20,12);
 }
 
-// Timestamp hash. Changing the time zone to GMT-6 timezone with moment module
+// Timestamp hash. Changing the time zone to GMT-6 timezone with moment module.
 function timeStampHash(timestamp) {
   var moment = require('moment-timezone');
   var timezone = "America/Regina";  
