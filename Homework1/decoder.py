@@ -19,7 +19,7 @@ with open('database_dump.csv', newline='') as data_dump:
 
         # decode and store each time stamp
         if(time_stamp != "last_access"):
-                time_stamps.append(strftime('%Y-%m-%dT%H:%M:%S', gmtime(int(time_stamp)-21600)))
+                time_stamps.append(strftime('%Y-%m-%dT%H:%M:%S', gmtime(int(time_stamp)-21600))) # weird conversion (-6 hours)
         
         # hashes each word in dictionary then compares 
         # with the hashed usernames and passwords
