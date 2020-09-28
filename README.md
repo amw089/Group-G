@@ -1,3 +1,2 @@
 # Group G
 HW1.
-
