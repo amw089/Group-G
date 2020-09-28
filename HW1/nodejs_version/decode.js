@@ -1,8 +1,10 @@
-
+// Global Variables
 const NAMESPACE = "d9b2d63d-a233-4123-847a-76838bf2413a";
 const DICTIONARY = 'dictionary.txt'
 const NAMES = 'names.txt'
 
+// UUIDV5 hashing funtion using crypto module to hash sha1
+// Parsing namespace string, and converting hex and ascii to bytes for hashing
 function uuidV5(namespace, name) {
   var hexNm = namespace.replace(/[{}\-]/g, '');
   var bytesNm = new Buffer(hexNm, 'hex');
@@ -17,18 +19,20 @@ function uuidV5(namespace, name) {
       hash.substr(20,12);
 }
 
-//timestamp hash
+// Timestamp hash. Changing the time zone to GMT-6 timezone with moment module
 function timeStampHash(timestamp) {
   var moment = require('moment-timezone');
-  var timezone = "America/Regina";
-  
+  var timezone = "America/Regina";  
   return moment.tz(timestamp*1000, timezone).format();
 }
 
+// Hash tables for handling dictionaries
 const pass_hashTable = new Map();
 const uuidV5_hashTable = new Map();
 var fs = require('fs');
 
+// Populating the dictionary hashmap. Handling syncronization with promises.
+// Create a dictionary with sha256 hash words for decoding   
 function populate_Dictionary(fileName) {
   return new Promise((resolve, reject) => {
 	fs.readFile(fileName, 'utf8', function (error, data) {
@@ -44,7 +48,7 @@ function populate_Dictionary(fileName) {
     })
   });
 }
-
+// Populate names hashmap for UUIDV5 hashing decoding. Handling syncronization with promises.
 function populate_Names(fileName) {
   return new Promise((resolve, reject) => {
 	fs.readFile(fileName, 'utf8', function (error, data) {
@@ -60,7 +64,7 @@ function populate_Names(fileName) {
     })
   });
 }
-
+// Reading the dumpfile and traversing through the dicionaries for decoding it.
 function printout(fileName) {
   return new Promise((resolve, reject) => {
 	fs.readFile(fileName, 'utf8', function (error, data) {
@@ -88,17 +92,17 @@ function printout(fileName) {
   });
 
 }
-
+// async function for controling the different threads in order for execution
 async function run() {
   await populate_Dictionary(DICTIONARY); 
   await populate_Names(NAMES);
   await printout(process.argv[2])
 }
 
-// Start of program after hastables creation
-
+// Start of program, the dumpifle is read as an argument in the command line
 if (process.argv[2] == null) {
 		console.log("Usage "+ process.argv[1] +"<dump_file.csv>");
 		process.exit(1);
 }
+// Run async function to start the decoding process
 run()
