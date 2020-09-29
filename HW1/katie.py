@@ -8,8 +8,6 @@
 # Libraries
 import csv, uuid, hashlib, time
 from datetime import datetime, date, time, timedelta
-#from datetime import timezone
-
 from collections import defaultdict
 
 # Constants
