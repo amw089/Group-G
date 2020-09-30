@@ -23,7 +23,7 @@ function uuidV5(namespace, name) {
 function timeStampHash(timestamp) {
   var moment = require('moment-timezone');
   var timezone = "America/Regina";  
-  return moment.tz(timestamp*1000, timezone).format();
+  return moment.tz(timestamp*1000, timezone).format().replace(":00","00");
 }
 
 // Hash tables for handling dictionaries
@@ -70,7 +70,8 @@ function printout(fileName) {
 	fs.readFile(fileName, 'utf8', function (error, data) {
       	if (error) return reject(error);
       	
-	var n = data.split("\n")
+  var n = data.split("\n")
+// delete ending newline from dump file read
 	n.length--
 
         for(var x in n){ 
@@ -79,14 +80,13 @@ function printout(fileName) {
 	
 		if(stringArray[0] == "username") {
 			linePrint = "username,password,last_access";
-		}
+    }
 		else {
 			linePrint = ""+ uuidV5_hashTable.get(stringArray[0]) +","+ pass_hashTable.get(stringArray[1]) +","+ timeStampHash(stringArray[2]);
 		}
 	
 		console.log(linePrint);	
-	}
-
+  }
       resolve();
     })
   });
