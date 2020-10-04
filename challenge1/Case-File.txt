@@ -1,0 +1,37 @@
+Case File:
+
+An unothorized user has inserted themselves into the database!
+
+1. You don't get a name list.
+
+2. The names are all, however, guaranteed to be in the dictionary.txt.
+
+3. You also do not have the luxury of getting a UUID namespace upfront.
+
+4. Only some of the passwords are in the dictionary.txt.
+
+These reason you have any passwords at all is that some users did not
+follow company protocol for password creation and therefore are a security
+risk, one you will need to exploit. Don't worry, the company has mandated
+that its users update their passwords immediately, and so anything you
+find will by now be obsolete.
+
+The user who last logged in at 05:04 UTC on February 14th has a file
+with the UUID namespace, presumably in lieu of a sticky note. The
+company provided the file as part of its cooperation, but does not keep
+any plaintext passwords on hand. You already asked. This file is encrypted
+using the same password as this user's account, because this user has
+once again refused to follow company policy and used the same password
+in multiple places.
+
+You need to reverse engineer the database to the point that you get the
+password associated with this user, and use that password to open their file.
+
+You should now have the list of usernames as well.
+
+The user with the username "Chirico" has found the password of the
+unauthorized user and has prepared a file encrypted with the HH:MM:SS
+section of their last login time (but set to the timezone for Istanbul,
+Turkey, where some of the users work remotely). Once you have found
+this user's name, you have found the clue you are looking for, and can
+proceed in your investigation elsewhere. Make sure to take good notes!
