@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "/home/raranaga25/Latech/fall 2020/CSC403/Programs/Program1/myapp/myapp.csproj": {}
+    "/home/raranaga25/Latech/fall 2020/CSC443/GITHUB/Group-G_repo/Group-G/HW1/myapp/myapp.csproj": {}
   },
   "projects": {
-    "/home/raranaga25/Latech/fall 2020/CSC403/Programs/Program1/myapp/myapp.csproj": {
+    "/home/raranaga25/Latech/fall 2020/CSC443/GITHUB/Group-G_repo/Group-G/HW1/myapp/myapp.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/home/raranaga25/Latech/fall 2020/CSC403/Programs/Program1/myapp/myapp.csproj",
+        "projectUniqueName": "/home/raranaga25/Latech/fall 2020/CSC443/GITHUB/Group-G_repo/Group-G/HW1/myapp/myapp.csproj",
         "projectName": "myapp",
-        "projectPath": "/home/raranaga25/Latech/fall 2020/CSC403/Programs/Program1/myapp/myapp.csproj",
+        "projectPath": "/home/raranaga25/Latech/fall 2020/CSC443/GITHUB/Group-G_repo/Group-G/HW1/myapp/myapp.csproj",
         "packagesPath": "/home/raranaga25/.nuget/packages/",
-        "outputPath": "/home/raranaga25/Latech/fall 2020/CSC403/Programs/Program1/myapp/obj/",
+        "outputPath": "/home/raranaga25/Latech/fall 2020/CSC443/GITHUB/Group-G_repo/Group-G/HW1/myapp/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "/home/raranaga25/.nuget/NuGet/NuGet.Config"

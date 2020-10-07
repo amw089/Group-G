@@ -11,3 +11,16 @@
 /home/raranaga25/Latech/fall 2020/CSC403/Programs/Program1/myapp/obj/Debug/netcoreapp3.1/myapp.dll
 /home/raranaga25/Latech/fall 2020/CSC403/Programs/Program1/myapp/obj/Debug/netcoreapp3.1/myapp.pdb
 /home/raranaga25/Latech/fall 2020/CSC403/Programs/Program1/myapp/obj/Debug/netcoreapp3.1/myapp.genruntimeconfig.cache
+/home/raranaga25/Latech/fall 2020/CSC443/GITHUB/Group-G_repo/Group-G/HW1/myapp/obj/Debug/netcoreapp3.1/myapp.csprojAssemblyReference.cache
+/home/raranaga25/Latech/fall 2020/CSC443/GITHUB/Group-G_repo/Group-G/HW1/myapp/obj/Debug/netcoreapp3.1/myapp.AssemblyInfoInputs.cache
+/home/raranaga25/Latech/fall 2020/CSC443/GITHUB/Group-G_repo/Group-G/HW1/myapp/obj/Debug/netcoreapp3.1/myapp.AssemblyInfo.cs
+/home/raranaga25/Latech/fall 2020/CSC443/GITHUB/Group-G_repo/Group-G/HW1/myapp/obj/Debug/netcoreapp3.1/myapp.csproj.CoreCompileInputs.cache
+/home/raranaga25/Latech/fall 2020/CSC443/GITHUB/Group-G_repo/Group-G/HW1/myapp/obj/Debug/netcoreapp3.1/myapp.dll
+/home/raranaga25/Latech/fall 2020/CSC443/GITHUB/Group-G_repo/Group-G/HW1/myapp/obj/Debug/netcoreapp3.1/myapp.pdb
+/home/raranaga25/Latech/fall 2020/CSC443/GITHUB/Group-G_repo/Group-G/HW1/myapp/bin/Debug/netcoreapp3.1/myapp
+/home/raranaga25/Latech/fall 2020/CSC443/GITHUB/Group-G_repo/Group-G/HW1/myapp/bin/Debug/netcoreapp3.1/myapp.deps.json
+/home/raranaga25/Latech/fall 2020/CSC443/GITHUB/Group-G_repo/Group-G/HW1/myapp/bin/Debug/netcoreapp3.1/myapp.runtimeconfig.json
+/home/raranaga25/Latech/fall 2020/CSC443/GITHUB/Group-G_repo/Group-G/HW1/myapp/bin/Debug/netcoreapp3.1/myapp.runtimeconfig.dev.json
+/home/raranaga25/Latech/fall 2020/CSC443/GITHUB/Group-G_repo/Group-G/HW1/myapp/bin/Debug/netcoreapp3.1/myapp.dll
+/home/raranaga25/Latech/fall 2020/CSC443/GITHUB/Group-G_repo/Group-G/HW1/myapp/bin/Debug/netcoreapp3.1/myapp.pdb
+/home/raranaga25/Latech/fall 2020/CSC443/GITHUB/Group-G_repo/Group-G/HW1/myapp/obj/Debug/netcoreapp3.1/myapp.genruntimeconfig.cache
