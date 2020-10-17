@@ -8,6 +8,8 @@ import (
 	"strings"
 )
 
+var SECTORSIZE int64 = 512
+
 type partition struct {
 	name        string
 	boot        string
@@ -23,7 +25,7 @@ func newPartition(dhs string) (*partition, int) {
 	p.name = ""
 	p.boot = dhs[0:2]
 	p.startCHS = dhs[2:8]
-	p.desType = strings.ToUpper(dhs[8:10])
+	p.desType = dhs[8:10]
 	p.endCHS = dhs[10:16]
 	p.startSector = dhs[16:24]
 	p.size = dhs[24:32]
@@ -38,66 +40,99 @@ func newPartition(dhs string) (*partition, int) {
 
 func main() {
 
+	if len(os.Args) > 2 {
+		if mode := os.Args[1]; mode != "-mbr" {
+			if mode != "-gpt" {
+			println("----Usage: go run hw2-1.go [MODES] <filename>")
+			println("MODES:\n -mbr     mbr analysis mode\n -gpt     gpt analysis mode" )
+			os.Exit(0)
+			}
+		}
+	} else {
+		println("+++Usage: go run hw2-1.go [MODES] <filename>")
+			println("MODES:\n -mbr     mbr analysis mode\n -gpt     gpt analysis mode" )
+			os.Exit(0)
+	}
+	mode := os.Args[1]
+	file := os.Args[2]
+	typesMap := populateType()
+
+
 	// Open File
-	f, err := os.Open(os.Args[1])
+	f, err := os.Open(file)
 	if err != nil {
 		panic(err)
 	}
 	defer f.Close()
 
-	// Get the content
-	dhs, err := DecodeFileToHexString(f)
-	if err != nil {
-		panic(err)
-	}
+	if mode == "-mbr" {
+		// Get the content
+		dhs, err := DecodeHexString(f,LBA(0))
+		if err != nil {
+			panic(err)
+		}
 
-	typesMap := populateType()
-
-	numPartitions := 0
-	part1, status1 := newPartition(dhs[446*2 : 462*2])
-	if status1 == 0 {
-		numPartitions++
-		part1.name = fmt.Sprintf("%s%d", "Partition", numPartitions)
-		printPartition(*part1,typesMap[part1.desType])
-		fmt.Println("-----------------------------")
-	}
-	part2, status2 := newPartition(dhs[462*2 : 478*2])
-	if status2 == 0 {
-		numPartitions++
-		part2.name = fmt.Sprintf("%s%d", "Partition", numPartitions)
-		printPartition(*part2,typesMap[part2.desType])
-		fmt.Println("-----------------------------")
-	}
-	part3, status3 := newPartition(dhs[478*2 : 494*2])
-	if status3 == 0 {
-		numPartitions++
-		part3.name = fmt.Sprintf("%s%d", "Partition", numPartitions)
-		printPartition(*part3,typesMap[part3.desType])
-		fmt.Println("-----------------------------")
-	}
-	part4, status4 := newPartition(dhs[494*2 : 510*2])
-	if status4 == 0 {
-		numPartitions++
-		part4.name = fmt.Sprintf("%s%d", "Partition", numPartitions)
-		printPartition(*part4,typesMap[part4.desType])
-		fmt.Println("-----------------------------")
-	}
-	fmt.Println("Number of partitions: ", numPartitions)
+		numPartitions := 0
+		part1, status1 := newPartition(dhs[446*2 : 462*2])
+		if status1 == 0 {
+			numPartitions++
+			part1.name = fmt.Sprintf("%s%d", "Partition", numPartitions)
+			printPartition(*part1,typesMap[part1.desType])
+			fmt.Println("-----------------------------")
+		}
+		part2, status2 := newPartition(dhs[462*2 : 478*2])
+		if status2 == 0 {
+			numPartitions++
+			part2.name = fmt.Sprintf("%s%d", "Partition", numPartitions)
+			printPartition(*part2,typesMap[part2.desType])
+			fmt.Println("-----------------------------")
+		}
+		part3, status3 := newPartition(dhs[478*2 : 494*2])
+		if status3 == 0 {
+			numPartitions++
+			part3.name = fmt.Sprintf("%s%d", "Partition", numPartitions)
+			printPartition(*part3,typesMap[part3.desType])
+			fmt.Println("-----------------------------")
+		}
+		part4, status4 := newPartition(dhs[494*2 : 510*2])
+		if status4 == 0 {
+			numPartitions++
+			part4.name = fmt.Sprintf("%s%d", "Partition", numPartitions)
+			printPartition(*part4,typesMap[part4.desType])
+			fmt.Println("-----------------------------")
+		}
+		fmt.Println("Number of partitions: ", numPartitions)
+	
+	} else if mode == "-gpt" {
+		// Get the content
+		dhs, err := DecodeHexString(f,LBA(1))
+		if err != nil {
+			panic(err)
+		}
+		println(dhs)
+	} 
 
 
 }
 
-func DecodeFileToHexString(out *os.File) (string, error) {
+func LBA(lba int64) int64 {
+	return lba * SECTORSIZE
+}
 
-	// Only the first 512 bytes are used to sniff the content type.
-	buffer := make([]byte, 512)
+func DecodeHexString(out *os.File, lba int64) (string, error) {
+
+	// Only the first 512 bytes are used
+	buffer := make([]byte, SECTORSIZE)
+
+	out.Seek(lba, 0)
 
 	_, err := out.Read(buffer)
 	if err != nil {
 		return "", err
 	}
 
-	const hextable = "0123456789abcdef"
+	const hextable = "0123456789ABCDEF"
+	
 	dst := make([]byte, len(buffer)*2)
 	j := 0
 	for _, v := range buffer {
