@@ -44,30 +44,48 @@ func main() {
 		f.Seek(446,0)
 
 		entry := 1
+		numPartions := 0
 		for entry < 5 {
+			_, err := f.Read(buffer)
+			if err != nil {
+				break	
+			}
+			if DecodeHexString(buffer[8:12]) != "00000000" {
+				numPartions = entry
+			} 
+			entry++
+		}
+
+		
+		fmt.Println("Number of partitions: ", numPartions)
+		println("---------------------------------------------")
+		
+		f.Seek(446,0)
+		entry = 1
+		for entry < numPartions+1 {
 			f.Read(buffer)
 
 			fmt.Println("Partition ", entry)
 
 			chunk := buffer[0:1]
-			if DecodeHexString2(chunk) == "80" {
+			if DecodeHexString(chunk) == "80" {
 				println("Boot: bootable")
 			} else {
 				println("Boot: non-bootable")
 			}
 
 			chunk = buffer[4:5]
-			str := DecodeHexString2(chunk)
+			str := DecodeHexString(chunk)
 			println("Type: "+ MBRMap[str])
 
 			chunk = buffer[8:12]
-			str = DecodeHexString2(chunk)
+			str = DecodeHexString(chunk)
 			x := ToLittleEndian(str,4)
 			sLBA, err := strconv.ParseInt(x, 16, 64)
 			fmt.Printf("Address LBA: %d\n", sLBA)
 
 			chunk = buffer[12:16]
-			str = DecodeHexString2(chunk)
+			str = DecodeHexString(chunk)
 			x = ToLittleEndian(str,4)
 			eLBA, err := strconv.ParseInt(x, 16, 64)
 			fmt.Printf("Sectors in Partition: %d\n", eLBA)
@@ -77,7 +95,6 @@ func main() {
 			}
 			entry++
 		}
-		fmt.Println("Number of partitions: ", entry-1)
 	
 	} else if mode == "-gpt" {
 		
@@ -88,7 +105,25 @@ func main() {
 		buffer := make([]byte, entrySize)
 		
 		entry := 1
-		for entry < 5 {
+		numPartions := 0
+		for entry <= 128 {
+			_, err := f.Read(buffer)
+			if err != nil {
+				break	
+			} 
+			if DecodeHexString(buffer[0:16]) != "00000000000000000000000000000000" {
+				numPartions = entry
+			} 
+			entry++
+		}
+
+		f.Seek(LBA(2),0)
+		
+		fmt.Println("Number of partitions: ", numPartions)
+		println("---------------------------------------------")
+
+		entry = 1
+		for entry < numPartions+1 {
 			f.Read(buffer)
 
 			fmt.Println("Partition ", entry)
@@ -97,19 +132,19 @@ func main() {
 			fmt.Printf("Name: %s\n",chunk)
 
 			chunk = buffer[0:16]
-			str := DecodeHexString2(chunk)
+			str := DecodeHexString(chunk)
 			GUID := ToLittleEndian(str[0:8],4)+"-"+ToLittleEndian(str[8:12],2)+"-"+ToLittleEndian(str[12:16],2)+"-"+str[16:20]+"-"+str[20:]
 			println("GUID: "+GUID)
 			println("Type: "+ GPTMap[GUID])
 
 			chunk = buffer[32:40]
-			str = DecodeHexString2(chunk)
+			str = DecodeHexString(chunk)
 			x := ToLittleEndian(str,8)
 			sLBA, err := strconv.ParseInt(x, 16, 64)
 			fmt.Printf("Starting LBA: %d\n", sLBA)
 
 			chunk = buffer[40:48]
-			str = DecodeHexString2(chunk)
+			str = DecodeHexString(chunk)
 			x = ToLittleEndian(str,8)
 			eLBA, err := strconv.ParseInt(x, 16, 64)
 			fmt.Printf("Ending LBA: %d\n", eLBA)
@@ -119,7 +154,6 @@ func main() {
 			}
 			entry++
 		}
-		fmt.Println("Number of partitions: ", entry-1)
 
 	} 
 
@@ -130,7 +164,7 @@ func LBA(lba int64) int64 {
 	return lba * SECTORSIZE
 }
 
-func DecodeHexString2(buffer []byte) string {
+func DecodeHexString(buffer []byte) string {
 	const hextable = "0123456789ABCDEF"
 	
 	dst := make([]byte, len(buffer)*2)
