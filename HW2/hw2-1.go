@@ -10,34 +10,6 @@ import (
 
 var SECTORSIZE int64 = 512
 
-type partition struct {
-	name        string
-	boot        string
-	startCHS    string
-	desType     string
-	endCHS      string
-	startSector string
-	size        string
-}
-
-func newPartition(dhs string) (*partition, int) {
-	p := partition{}
-	p.name = ""
-	p.boot = dhs[0:2]
-	p.startCHS = dhs[2:8]
-	p.desType = dhs[8:10]
-	p.endCHS = dhs[10:16]
-	p.startSector = dhs[16:24]
-	p.size = dhs[24:32]
-
-	i := 0
-	if p.size == "00000000" {
-		i = -1
-	}
-	
-	return &p, i
-}
-
 func main() {
 
 	if len(os.Args) > 2 {
@@ -65,43 +37,47 @@ func main() {
 
 	if mode == "-mbr" {
 		MBRMap := populateType("mbr")
-
+		entrySize := 16
 		// Get the content
-		dhs, err := DecodeHexString(f,LBA(0),512)
-		if err != nil {
-			panic(err)
-		}
 
-		numPartitions := 0
-		part1, status1 := newPartition(dhs[446*2 : 462*2])
-		if status1 == 0 {
-			numPartitions++
-			part1.name = fmt.Sprintf("%s%d", "Partition", numPartitions)
-			printPartition(*part1,MBRMap[part1.desType])
-			fmt.Println("-----------------------------")
+		buffer := make([]byte, entrySize)
+		f.Seek(446,0)
+
+		entry := 1
+		for entry < 5 {
+			f.Read(buffer)
+
+			fmt.Println("Partition ", entry)
+
+			chunk := buffer[0:1]
+			if DecodeHexString2(chunk) == "80" {
+				println("Boot: bootable")
+			} else {
+				println("Boot: non-bootable")
+			}
+
+			chunk = buffer[4:5]
+			str := DecodeHexString2(chunk)
+			println("Type: "+ MBRMap[str])
+
+			chunk = buffer[8:12]
+			str = DecodeHexString2(chunk)
+			x := ToLittleEndian(str,4)
+			sLBA, err := strconv.ParseInt(x, 16, 64)
+			fmt.Printf("Address LBA: %d\n", sLBA)
+
+			chunk = buffer[12:16]
+			str = DecodeHexString2(chunk)
+			x = ToLittleEndian(str,4)
+			eLBA, err := strconv.ParseInt(x, 16, 64)
+			fmt.Printf("Sectors in Partition: %d\n", eLBA)
+			println("---------------------------------------------")
+			if err != nil {
+				panic(err)	
+			}
+			entry++
 		}
-		part2, status2 := newPartition(dhs[462*2 : 478*2])
-		if status2 == 0 {
-			numPartitions++
-			part2.name = fmt.Sprintf("%s%d", "Partition", numPartitions)
-			printPartition(*part2,MBRMap[part2.desType])
-			fmt.Println("-----------------------------")
-		}
-		part3, status3 := newPartition(dhs[478*2 : 494*2])
-		if status3 == 0 {
-			numPartitions++
-			part3.name = fmt.Sprintf("%s%d", "Partition", numPartitions)
-			printPartition(*part3,MBRMap[part3.desType])
-			fmt.Println("-----------------------------")
-		}
-		part4, status4 := newPartition(dhs[494*2 : 510*2])
-		if status4 == 0 {
-			numPartitions++
-			part4.name = fmt.Sprintf("%s%d", "Partition", numPartitions)
-			printPartition(*part4,MBRMap[part4.desType])
-			fmt.Println("-----------------------------")
-		}
-		fmt.Println("Number of partitions: ", numPartitions)
+		fmt.Println("Number of partitions: ", entry-1)
 	
 	} else if mode == "-gpt" {
 		
@@ -167,31 +143,6 @@ func DecodeHexString2(buffer []byte) string {
 	return string(dst)
 }
 
-func DecodeHexString(out *os.File, lba int64, size int) (string, error) {
-
-	// Only the first 512 bytes are used
-	buffer := make([]byte, size)
-
-	out.Seek(lba, 0)
-
-	_, err := out.Read(buffer)
-	if err != nil {
-		return "", err
-	}
-
-	const hextable = "0123456789ABCDEF"
-	
-	dst := make([]byte, len(buffer)*2)
-	j := 0
-	for _, v := range buffer {
-		dst[j] = hextable[v>>4]
-		dst[j+1] = hextable[v&0x0f]
-		j += 2
-	}
-	
-	return string(dst), nil
-}
-
 func ToLittleEndian(str string, bytes int) string {
 	result := ""
 	j := 0
@@ -202,42 +153,6 @@ func ToLittleEndian(str string, bytes int) string {
 		j += 2
 	}
 	return result
-}
-
-func printPartition(part partition, pType string) {
-
-	line := part.name + "\n" + "Boot: "
-	if part.boot == "80" {
-		line += "bootable"
-	} else {
-		line += "non-bootable"
-	}
-
-	
-	line += "\n" + "Type: " + pType +"\n"+"LBA: "
-
-	s1 := part.startSector[6:8]
-	s2 := part.startSector[4:6]
-	s3 := part.startSector[2:4]
-	s4 := part.startSector[0:2]
-
-	sSect, err2 := strconv.ParseInt(s1+s2+s3+s4, 16, 64)
-
-	line += strconv.FormatInt(sSect, 10) + "\n" + "Size: "
-
-	s1 = part.size[6:8]
-	s2 = part.size[4:6]
-	s3 = part.size[2:4]
-	s4 = part.size[0:2]
-
-	sSect, err2 = strconv.ParseInt(s1+s2+s3+s4, 16, 64)
-	if err2 != nil {
-		panic(err2)
-	}
-
-	line += strconv.FormatInt(sSect, 10)
-
-	println(line)
 }
 
 func populateType(pType string) map[string]string {
