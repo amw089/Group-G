@@ -67,7 +67,7 @@ func main() {
 
 	if mode == "-mbr" {
 		// Get the content
-		dhs, err := DecodeHexString(f,LBA(0))
+		dhs, err := DecodeHexString(f,LBA(0),512)
 		if err != nil {
 			panic(err)
 		}
@@ -104,12 +104,35 @@ func main() {
 		fmt.Println("Number of partitions: ", numPartitions)
 	
 	} else if mode == "-gpt" {
+		entrySize := 128
 		// Get the content
-		dhs, err := DecodeHexString(f,LBA(1))
+		dhs, err := DecodeHexString(f,LBA(2),512)
 		if err != nil {
 			panic(err)
 		}
-		println(dhs)
+
+		for i := 0; i < 33; i++ {
+
+			println(dhs)
+			chunk := dhs[32*2:40*2]
+			x := ToLittleEndian(chunk,8)
+			sLBA, err := strconv.ParseInt(x, 16, 64)
+			println("Starting LBA: "+strconv.FormatInt(sLBA, 10))
+
+			chunk = dhs[40*2:48*2]
+			x = ToLittleEndian(chunk,8)
+			eLBA, err := strconv.ParseInt(x, 16, 64)
+			println("Ending LBA: "+strconv.FormatInt(eLBA, 10))
+			println("-------------------------------------")
+			if err != nil {
+				panic(err)
+			}
+			println(entrySize)
+			dhs = dhs[entrySize*2:]
+			entrySize += 128
+		}
+
+
 	} 
 
 
@@ -119,10 +142,10 @@ func LBA(lba int64) int64 {
 	return lba * SECTORSIZE
 }
 
-func DecodeHexString(out *os.File, lba int64) (string, error) {
+func DecodeHexString(out *os.File, lba int64, size int) (string, error) {
 
 	// Only the first 512 bytes are used
-	buffer := make([]byte, SECTORSIZE)
+	buffer := make([]byte, size)
 
 	out.Seek(lba, 0)
 
@@ -142,6 +165,18 @@ func DecodeHexString(out *os.File, lba int64) (string, error) {
 	}
 	
 	return string(dst), nil
+}
+
+func ToLittleEndian(str string, bytes int) string {
+	result := ""
+	j := 0
+	len := bytes*2
+	for i := 0; i < bytes; i++ {
+		temp := str[len-j-2:len-j]
+		result += temp
+		j += 2
+	}
+	return result
 }
 
 func printPartition(part partition, pType string) {
