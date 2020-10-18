@@ -55,9 +55,7 @@ func main() {
 	}
 	mode := os.Args[1]
 	file := os.Args[2]
-	typesMap := populateType()
-
-
+	
 	// Open File
 	f, err := os.Open(file)
 	if err != nil {
@@ -66,6 +64,8 @@ func main() {
 	defer f.Close()
 
 	if mode == "-mbr" {
+		MBRMap := populateType("mbr")
+
 		// Get the content
 		dhs, err := DecodeHexString(f,LBA(0),512)
 		if err != nil {
@@ -77,61 +77,73 @@ func main() {
 		if status1 == 0 {
 			numPartitions++
 			part1.name = fmt.Sprintf("%s%d", "Partition", numPartitions)
-			printPartition(*part1,typesMap[part1.desType])
+			printPartition(*part1,MBRMap[part1.desType])
 			fmt.Println("-----------------------------")
 		}
 		part2, status2 := newPartition(dhs[462*2 : 478*2])
 		if status2 == 0 {
 			numPartitions++
 			part2.name = fmt.Sprintf("%s%d", "Partition", numPartitions)
-			printPartition(*part2,typesMap[part2.desType])
+			printPartition(*part2,MBRMap[part2.desType])
 			fmt.Println("-----------------------------")
 		}
 		part3, status3 := newPartition(dhs[478*2 : 494*2])
 		if status3 == 0 {
 			numPartitions++
 			part3.name = fmt.Sprintf("%s%d", "Partition", numPartitions)
-			printPartition(*part3,typesMap[part3.desType])
+			printPartition(*part3,MBRMap[part3.desType])
 			fmt.Println("-----------------------------")
 		}
 		part4, status4 := newPartition(dhs[494*2 : 510*2])
 		if status4 == 0 {
 			numPartitions++
 			part4.name = fmt.Sprintf("%s%d", "Partition", numPartitions)
-			printPartition(*part4,typesMap[part4.desType])
+			printPartition(*part4,MBRMap[part4.desType])
 			fmt.Println("-----------------------------")
 		}
 		fmt.Println("Number of partitions: ", numPartitions)
 	
 	} else if mode == "-gpt" {
+		
+		GPTMap := populateType("gpt")
 		entrySize := 128
-		// Get the content
-		dhs, err := DecodeHexString(f,LBA(2),512)
-		if err != nil {
-			panic(err)
-		}
+		
+		f.Seek(LBA(2),0)
+		buffer := make([]byte, entrySize)
+		
+		entry := 1
+		for entry < 5 {
+			f.Read(buffer)
 
-		for i := 0; i < 33; i++ {
+			fmt.Println("Partition ", entry)
 
-			println(dhs)
-			chunk := dhs[32*2:40*2]
-			x := ToLittleEndian(chunk,8)
+			chunk := buffer[56:128]
+			fmt.Printf("Name: %s\n",chunk)
+
+			chunk = buffer[0:16]
+			str := DecodeHexString2(chunk)
+			GUID := ToLittleEndian(str[0:8],4)+"-"+ToLittleEndian(str[8:12],2)+"-"+ToLittleEndian(str[12:16],2)+"-"+str[16:20]+"-"+str[20:]
+			println("GUID: "+GUID)
+			println("Type: "+ GPTMap[GUID])
+
+			chunk = buffer[32:40]
+			str = DecodeHexString2(chunk)
+			x := ToLittleEndian(str,8)
 			sLBA, err := strconv.ParseInt(x, 16, 64)
-			println("Starting LBA: "+strconv.FormatInt(sLBA, 10))
+			fmt.Printf("Starting LBA: %d\n", sLBA)
 
-			chunk = dhs[40*2:48*2]
-			x = ToLittleEndian(chunk,8)
+			chunk = buffer[40:48]
+			str = DecodeHexString2(chunk)
+			x = ToLittleEndian(str,8)
 			eLBA, err := strconv.ParseInt(x, 16, 64)
-			println("Ending LBA: "+strconv.FormatInt(eLBA, 10))
-			println("-------------------------------------")
+			fmt.Printf("Ending LBA: %d\n", eLBA)
+			println("---------------------------------------------")
 			if err != nil {
-				panic(err)
+				panic(err)	
 			}
-			println(entrySize)
-			dhs = dhs[entrySize*2:]
-			entrySize += 128
+			entry++
 		}
-
+		fmt.Println("Number of partitions: ", entry-1)
 
 	} 
 
@@ -140,6 +152,19 @@ func main() {
 
 func LBA(lba int64) int64 {
 	return lba * SECTORSIZE
+}
+
+func DecodeHexString2(buffer []byte) string {
+	const hextable = "0123456789ABCDEF"
+	
+	dst := make([]byte, len(buffer)*2)
+	j := 0
+	for _, v := range buffer {
+		dst[j] = hextable[v>>4]
+		dst[j+1] = hextable[v&0x0f]
+		j += 2
+	}
+	return string(dst)
 }
 
 func DecodeHexString(out *os.File, lba int64, size int) (string, error) {
@@ -215,25 +240,49 @@ func printPartition(part partition, pType string) {
 	println(line)
 }
 
-func populateType() map[string]string {
+func populateType(pType string) map[string]string {
 
-	file, err := os.Open("mbr_partition_types.csv")
-
-	if err != nil {
-//		log.Fatalf("failed opening file: %s", err)
-	}
 	types := make(map[string]string)
-	scanner := bufio.NewScanner(file)
-	scanner.Split(bufio.ScanLines)
+	if(pType == "mbr") {
+		file, err := os.Open("mbr_partition_types.csv")
 
-	for scanner.Scan() {
-		aType := scanner.Text()
-		arguments := strings.Split(aType,",")
-		key := arguments[0]
-		types[key] = arguments[1]
+		if err != nil {
+	//		log.Fatalf("failed opening file: %s", err)
+		}
+		scanner := bufio.NewScanner(file)
+		scanner.Split(bufio.ScanLines)
+
+		for scanner.Scan() {
+			aType := scanner.Text()
+			arguments := strings.Split(aType,",")
+			key := arguments[0]
+			types[key] = arguments[1]
+		}
+
+		file.Close()
+		return types
+
+	} else if(pType == "gpt") {
+		file, err := os.Open("gpt_partition_guids.csv")
+
+		if err != nil {
+	//		log.Fatalf("failed opening file: %s", err)
+		}
+		types := make(map[string]string)
+		scanner := bufio.NewScanner(file)
+		scanner.Split(bufio.ScanLines)
+
+		for scanner.Scan() {
+			aType := scanner.Text()
+			arguments := strings.Split(aType,",")
+			key := arguments[0]
+
+			types[key] = arguments[1]+" - "+arguments[2]
+		}
+
+		file.Close()
+		return types
 	}
-
-	file.Close()
 
 	return types
 }
