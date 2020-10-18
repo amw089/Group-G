@@ -15,9 +15,11 @@ func main() {
 	if len(os.Args) > 2 {
 		if mode := os.Args[1]; mode != "-mbr" {
 			if mode != "-gpt" {
-			println("----Usage: go run hw2-1.go [MODES] <filename>")
-			println("MODES:\n -mbr     mbr analysis mode\n -gpt     gpt analysis mode" )
-			os.Exit(0)
+				if mode != "-fat" {
+					println("----Usage: go run hw2-1.go [MODES] <filename>")
+					println("MODES:\n -mbr     mbr analysis mode\n -gpt     gpt analysis mode" )
+					os.Exit(0)
+				}
 			}
 		}
 	} else {
@@ -155,7 +157,54 @@ func main() {
 			entry++
 		}
 
-	} 
+	} else if mode == "-fat" {
+		buffer := make([]byte, 512)
+		f.Read(buffer)
+
+		chunk := buffer[11:13]
+		str := DecodeHexString(chunk) 	
+		x := ToLittleEndian(str,2)
+		temp, err := strconv.ParseInt(x, 16, 64)
+		println("Bytes/Sector: ", temp)
+
+		chunk = buffer[13:14]
+		str = DecodeHexString(chunk) 	
+		x = ToLittleEndian(str,1)
+		temp, err = strconv.ParseInt(x, 16, 64)
+		println("Sectors/Cluster: ", temp)
+		
+		chunk = buffer[14:16]
+		str = DecodeHexString(chunk) 	
+		x = ToLittleEndian(str,2)
+		sizeReserved, err := strconv.ParseInt(x, 16, 64)
+		println("Size of Reserved Area in Sectors: ", sizeReserved)
+		println("Start Address of 1st FAT: ", sizeReserved)
+
+		chunk = buffer[16:17]
+		str = DecodeHexString(chunk) 	
+		x = ToLittleEndian(str,1)
+		numFATs, err := strconv.ParseInt(x, 16, 64)
+		println("# of FATs: ", numFATs)		
+
+		chunk = buffer[36:40]
+		str = DecodeHexString(chunk) 	
+		x = ToLittleEndian(str,2)
+		secPerFAT, err := strconv.ParseInt(x, 16, 64)
+		println("Sectors/FAT: ", secPerFAT)
+
+		chunk = buffer[44:48]
+		str = DecodeHexString(chunk) 	
+		x = ToLittleEndian(str,4)
+		clusterRootDir, err := strconv.ParseInt(x, 16, 64)
+		println("Cluster Address of Root Directory: ", clusterRootDir)
+
+		startSecAddRootDir := sizeReserved + (secPerFAT*numFATs)
+		println("Starting Sector Address of the Data Section: ", startSecAddRootDir)
+
+		if err != nil {
+			panic(err)	
+		}
+	}
 
 
 }
@@ -235,4 +284,3 @@ func populateType(pType string) map[string]string {
 
 	return types
 }
-
