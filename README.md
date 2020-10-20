@@ -12,7 +12,7 @@ Each of the folders in this repository holds an assignment or challenge given in
  * Assignment/Challenge 2 - Folder "HW2" - Analyzing mbr, gpt, and FAT. 
     - The program to grade is "hw2-1.go". It was coded using golang.
       To compile it, enter "go build hw2-1.go".
-      To run it, enter "go run hw2-1.go [mode] <filename>". The ISO is read in the arguments of the commandline. 
+      To run it, enter "go run hw2-1.go [mode] [filename]". The Image file is read in the arguments of the commandline. 
       There are three modes: 
         -mbr           mbr analysis
         -gpt           gpt analysis
