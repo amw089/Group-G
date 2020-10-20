@@ -8,23 +8,23 @@ import (
 	"strings"
 )
 
+var DEBUG bool = false
 var SECTORSIZE int64 = 512
+var FILTER string = "JPG"
 
 func main() {
+
+	PrintUsage()
 
 	if len(os.Args) > 2 {
 		if mode := os.Args[1]; mode != "-mbr" {
 			if mode != "-gpt" {
 				if mode != "-fat" {
-					println("Usage: go run hw2-1.go [MODES] <filename>")
-					println("MODES:\n -mbr     mbr analysis mode\n -gpt     gpt analysis mode\n -fat     fat analysis mode")
 					os.Exit(0)
 				}
 			}
 		}
 	} else {
-		println("Usage: go run hw2-1.go [MODES] <filename>")
-		println("MODES:\n -mbr     mbr analysis mode\n -gpt     gpt analysis mode\n -fat     fat analysis mode")
 		os.Exit(0)
 	}
 	mode := os.Args[1]
@@ -160,11 +160,7 @@ func main() {
 	} else if mode == "-fat" { 
 
 		// For Entering an offset
-		reader := bufio.NewReader(os.Stdin)
-		fmt.Print("Enter and Offset if needed, if not, leave blank: ")
-		text, _ := reader.ReadString('\n')	
-		offset, _ := strconv.Atoi(strings.Replace(text, "\n","",1))
-		fmt.Println("Offset of Partitions: ",offset)
+		offset := PrintOffsetUsage()
 
 		//Seek the offset
 		f.Seek(int64(offset),0)
@@ -214,13 +210,16 @@ func main() {
 		// Skiping to root directory and skiping the folders
 		f.Seek(((startSecAddRootDir+1)*512)+int64(offset),0)
 		currSectAddress := ((startSecAddRootDir+1)*512)+int64(offset)
+		if DEBUG {
+			println("Address For the file info in root directory: ",currSectAddress)
+		}
 		
 		buffer = make([]byte, 32)
 		f.Read(buffer)
 		previousAddress := currSectAddress + 32
 		
 		i := 0
-		for i < 512 {
+		for i < 4096 {
 			
 			buffer = make([]byte, 32)
 			_, err := f.Read(buffer)
@@ -228,12 +227,16 @@ func main() {
 				panic(err)	
 			}
 			previousAddress += 32
-/*			println("----------------------------------------------------")
-			fmt.Printf("32 byte chunk: %x\n", buffer)
-			println("----------------------------------------------------")
-*/			
-			chunk = buffer[0:8]
-			nameOfFile := fmt.Sprintf("%s", chunk)
+			
+			if DEBUG {
+				println("----------------------------------------------------")
+				fmt.Printf("32 byte chunk: %x\n", buffer)
+				println("----------------------------------------------------")
+			}
+			
+			name := fmt.Sprintf("%s", buffer[0:8])
+			extension := fmt.Sprintf("%s", buffer[8:11])
+			nameOfFile := name+"."+extension
 			
 
 			attributes := buffer[11:12]
@@ -252,11 +255,10 @@ func main() {
 			x = ToLittleEndian(str,4)
 			sizeOfFile, err := strconv.ParseInt(x, 16, 64)
 
-			if sizeOfFile == 0 {
+			// need to change this filter
+			if extension != FILTER {
+				i += 32
 				continue				
-			}
-			if DecodeHexString(attributes)  == "00" {
-				continue
 			}
 
 			//Create list for FAT chain, empty wil be incremented dynamically
@@ -315,7 +317,7 @@ func main() {
 			fmt.Printf("Start of File Cluster: %d\n", fileClusterAddress)
 			println("Size: ", sizeOfFile)
 			println("Ending Cluster Address of File: ", chain[len(chain)-2]+1)
-			println("----------------------------------------------------")
+			
 			// Go back
 			previousAddress, err = f.Seek(previousAddress,0)
 			if err != nil {
@@ -409,4 +411,22 @@ func populateType(pType string) map[string]string {
 	}
 
 	return types
+}
+
+func PrintUsage() {
+	println("---------------------------------------------")
+	println("Usage: go run hw2-1.go [MODES] <filename>")
+	println("MODES:\n -mbr     mbr analysis mode\n -gpt     gpt analysis mode\n -fat     fat analysis mode")
+	println("---------------------------------------------")
+}
+
+func PrintOffsetUsage() int {
+	println("----------------------------------------------------")
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print("Enter a byte Offset if needed to jump to a specific Partition, if not, leave blank.\nTo find the partitions run -mbr or -gpt\nOffset: ")
+	text, _ := reader.ReadString('\n')	
+	offset, _ := strconv.Atoi(strings.Replace(text, "\n","",1))
+	fmt.Println("Offset of Partitions: ",offset)
+	println("----------------------------------------------------")
+	return offset
 }
