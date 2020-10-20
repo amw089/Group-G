@@ -266,8 +266,13 @@ func main() {
 			chain = append(chain, fileClusterAddress)
 			currentCluster := fileClusterAddress
 
+			if DEBUG {
+				println("Address Jump to first cluster in chain of file: ",((32*bPERs)+(currentCluster*4))+int64(offset))
+			}
+
 			for {
 				f.Seek(((32*bPERs)+(currentCluster*4))+int64(offset),0)
+				
 				buffer = make([]byte, 4)
 				f.Read(buffer)
 				str = DecodeHexString(buffer)
@@ -292,11 +297,16 @@ func main() {
 			}
 			defer f.Close()
 			//Where I look for metadata
+
+			if DEBUG {
+				println("Address Jump to first cluster in chain of file: ",(512*((fileClusterAddress-clusterRootDir)+startSecAddRootDir))+int64(offset))
+			}
+
 			for index := range chain {
 			//	println("Current cluster: ",chain[index])
 				
 				nextSectAddress := (chain[index]-clusterRootDir)+startSecAddRootDir
-				nextSectAddressInBytes := nextSectAddress*512
+				nextSectAddressInBytes := (nextSectAddress*512)+int64(offset)
 				f.Seek(nextSectAddressInBytes,0)
 				buffer = make([]byte, 512)
 				_, err = f.Read(buffer)
