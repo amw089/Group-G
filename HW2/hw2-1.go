@@ -29,12 +29,6 @@ func main() {
 	}
 	mode := os.Args[1]
 	file := os.Args[2]
-	// For Offset
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Enter and Offset if needed, if not, leave blank: ")
-	text, _ := reader.ReadString('\n')	
-	offset, _ := strconv.Atoi(strings.Replace(text, "\n","",1))
-	fmt.Println(offset)
 
 	// Open File
 	f, err := os.Open(file)
@@ -164,6 +158,15 @@ func main() {
 		}
 
 	} else if mode == "-fat" { 
+
+		// For Entering an offset
+		reader := bufio.NewReader(os.Stdin)
+		fmt.Print("Enter and Offset if needed, if not, leave blank: ")
+		text, _ := reader.ReadString('\n')	
+		offset, _ := strconv.Atoi(strings.Replace(text, "\n","",1))
+		fmt.Println("Offset of Partitions: ",offset)
+
+		//Seek the offset
 		f.Seek(int64(offset),0)
 		buffer := make([]byte, 512)
 		f.Read(buffer)
@@ -208,9 +211,9 @@ func main() {
 		startSecAddRootDir := sizeReserved + (secPerFAT*numFATs)
 		println("Starting Sector Address of the Data Section: ", startSecAddRootDir)
 
+		// Skiping to root directory and skiping the folders
 		f.Seek(((startSecAddRootDir+1)*512)+int64(offset),0)
 		currSectAddress := ((startSecAddRootDir+1)*512)+int64(offset)
-		currSect := clusterRootDir
 		
 		buffer = make([]byte, 32)
 		f.Read(buffer)
@@ -219,31 +222,21 @@ func main() {
 		i := 0
 		for i < 512 {
 			
+			buffer = make([]byte, 32)
 			_, err := f.Read(buffer)
 			if err != nil {
 				panic(err)	
 			}
 			previousAddress += 32
-			println("----------------------------------------------------")
+/*			println("----------------------------------------------------")
 			fmt.Printf("32 byte chunk: %x\n", buffer)
 			println("----------------------------------------------------")
-			
+*/			
 			chunk = buffer[0:8]
-			fmt.Printf("Name: %s\n", chunk)
-
-			chunk = buffer[11:12]
-			fmt.Printf("Is sub: %x\n", chunk)
-
-			chunk = buffer[26:28]
-			str = DecodeHexString(chunk)
-			dataSectCluster, err := strconv.ParseInt(str, 16, 64)
-			fmt.Printf("Where data starts: %d\n", dataSectCluster)
-
-			nextSectAddress := (dataSectCluster-currSect)+currSectAddress
+			nameOfFile := fmt.Sprintf("%s", chunk)
 			
-			f.Seek((nextSectAddress*bPERs)+int64(offset),0)
-			currSectAddress = nextSectAddress
-			currSect = dataSectCluster
+
+			attributes := buffer[11:12]
 
 			FirstPartOfCluster := buffer[20:22]
 			str = DecodeHexString(FirstPartOfCluster) 	
@@ -252,102 +245,88 @@ func main() {
 			str = DecodeHexString(SecondPartOfCluster) 	
 			x += ToLittleEndian(str,2)
 			fileClusterAddress, err := strconv.ParseInt(x, 16, 64)
-			fmt.Printf("Start of File Cluster: %d\n", fileClusterAddress)
-
+			
 
 			chunk = buffer[28:32]
 			str = DecodeHexString(chunk) 	
 			x = ToLittleEndian(str,4)
 			sizeOfFile, err := strconv.ParseInt(x, 16, 64)
-			println("Size: ", sizeOfFile)
 
-			f.Seek(previousAddress,0)
+			if sizeOfFile == 0 {
+				continue				
+			}
+			if DecodeHexString(attributes)  == "00" {
+				continue
+			}
+
+			//Create list for FAT chain, empty wil be incremented dynamically
+			var chain []int64 = make([]int64,0)
+			chain = append(chain, fileClusterAddress)
+			currentCluster := fileClusterAddress
+
+			for {
+				f.Seek(((32*bPERs)+(currentCluster*4))+int64(offset),0)
+				buffer = make([]byte, 4)
+				f.Read(buffer)
+				str = DecodeHexString(buffer)
+				x = ToLittleEndian(str,4)
+				currentCluster, err = strconv.ParseInt(x, 16, 64)
+				if err != nil {
+					panic(err)	
+				}
+				chain = append(chain, currentCluster)
+				if x == "0FFFFFFF" {
+					break
+				}
+				if x == "00000000" {
+					break
+				}
+				
+			}
+	//		fmt.Println("Chain array :", chain)
+			recoveredFile, err1 := os.OpenFile(nameOfFile,os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if err1 != nil {
+	//			println(err1)
+			}
+			defer f.Close()
+			//Where I look for metadata
+			for index := range chain {
+			//	println("Current cluster: ",chain[index])
+				
+				nextSectAddress := (chain[index]-clusterRootDir)+startSecAddRootDir
+				nextSectAddressInBytes := nextSectAddress*512
+				f.Seek(nextSectAddressInBytes,0)
+				buffer = make([]byte, 512)
+				_, err = f.Read(buffer)
+				if err != nil {
+					break	
+				}	
+
+				if _, err := recoveredFile.Write(buffer); err != nil {
+			//		println(err)
+				}
+
+			}
+
+			//////////////
+			println("----------------------------------------------------")
+			fmt.Printf("Name: %s\n", nameOfFile)
+			fmt.Printf("Attributes: %x\n", attributes)
+			fmt.Printf("Start of File Cluster: %d\n", fileClusterAddress)
+			println("Size: ", sizeOfFile)
+			println("Ending Cluster Address of File: ", chain[len(chain)-2]+1)
+			println("----------------------------------------------------")
+			// Go back
+			previousAddress, err = f.Seek(previousAddress,0)
+			if err != nil {
+				panic(err)	
+			}
 
 			i += 32
 		}
-/*		f.Read(buffer)
-		fmt.Printf("Next 32: %s\n", buffer)
-		
-		f.Read(buffer)
-		fmt.Printf("Next 32: %s\n", buffer)
-
-		chunk = buffer[11:12]
-		fmt.Printf("Is sub: %x\n", chunk)
-
-		chunk = buffer[26:27]
-		str = DecodeHexString(chunk)
-		dataSectCluster, err := strconv.ParseInt(str, 16, 64)
-		fmt.Printf("Where data starts: %d\n", dataSectCluster)
-
-		nextSectAddress := (dataSectCluster-currSect)+currSectAddress
-		println("Adress of data section: ",(nextSectAddress*bPERs)+offset)
-		f.Seek((nextSectAddress*bPERs)+offset,0)
-		currSectAddress = nextSectAddress
-		currSect = dataSectCluster
-
-//		/ loop here for all the files in the folder
-		buffer = make([]byte, 128)
-		f.Read(buffer)
-		fmt.Printf("First 128 of data file 1: %x\n", buffer)
-
-		chunk = buffer[122:124]
-		str = DecodeHexString(chunk) 	
-		x = ToLittleEndian(str,2)
-		fileClusterAddress, err := strconv.ParseInt(x, 16, 64)
-		println("Start of File1 Cluster: ", fileClusterAddress)
-
-		chunk = buffer[124:127]
-		str = DecodeHexString(chunk) 	
-		x = ToLittleEndian(str,3)
-		sizeOfFile, err := strconv.ParseInt(x, 16, 64)
-		println("Size: ", sizeOfFile)
-
-		buffer = make([]byte, 128)
-		f.Read(buffer)
-		fmt.Printf("First 128 of data file 2: %s\n", buffer)
-
-		chunk = buffer[122:124]
-		str = DecodeHexString(chunk) 	
-		x = ToLittleEndian(str,2)
-		fileClusterAddress, err = strconv.ParseInt(x, 16, 64)
-		println("Start of File2 Cluster: ", fileClusterAddress)
-
-		chunk = buffer[124:127]
-		str = DecodeHexString(chunk) 	
-		x = ToLittleEndian(str,3)
-		sizeOfFile, err = strconv.ParseInt(x, 16, 64)
-		println("Size2: ", sizeOfFile)
-/*
-/*
-		nextSectAddress = (fileClusterAddress-currSect)+currSectAddress
-		f.Seek((nextSectAddress*bPERs)+offset,0)
-		currSectAddress = nextSectAddress
-		currSect = fileClusterAddress
-
-		buffer = make([]byte, 512)
-		f.Read(buffer)
-
-		f.Seek(((32*bPERs)+16)+offset,0)
-		buffer = make([]byte, 1)
-		f.Read(buffer)
-		str = DecodeHexString(buffer)
-		nextChunkClusterAddress, err := strconv.ParseInt(str, 16, 64)
-		fmt.Printf("nextChunkClusterAddress: %x\n", nextChunkClusterAddress)
-
-*/
-
-	//	f.Seek((nextChunkClusterAddress*bPERs),0)
 
 
-
-/*		f.Read(buffer)
-		f.Read(buffer)
-		
-		chunk = buffer[26:27]
-		str = DecodeHexString(chunk)
-		fileSectCluster, err := strconv.ParseInt(str, 16, 64)
-		fmt.Printf("File starts at cluster: %d\n", fileSectCluster)*/
-
+		//check error
 		if err != nil {
 			panic(err)	
 		}
