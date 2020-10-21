@@ -76,17 +76,47 @@ def gpt_parse(partiton):
 
 # Function to identify GPT partition type
 def gpt_partition_name(name_data):
-    final = ""
-    name = hex(name_data[8])
-    name = name[2:]
-    final = final + bytes.fromhex('{}'.format(name)).decode('utf-8')
-    name = hex(name_data[7])
-    name = name[2:]
-    final = final + bytes.fromhex('{}'.format(name)).decode('utf-8')
-    name = hex(name_data[9])
-    name = name[2:]
-##    final = final + bytes.fromhex('{}'.format(name)).decode('utf-8')
-    return final
+    name = ""
+    data1 = hex(name_data[7])
+    data2 = hex(name_data[8])
+    data3 = hex(name_data[9])
+    x = 0
+    y = len(data1)
+    while (x < len(data1)):
+        data = str(data1)
+        while(y > 0):
+            z = y-2
+            letter = chr(int(data[z:y],16))
+            name += letter
+            y = y-4
+        x+=1
+        
+    x = 0
+    y = len(data2)
+    while (x < len(data2)):
+        data = str(data2)
+        while(y > 0):
+            z = y-2
+            letter = chr(int(data[z:y],16))
+            name += letter
+            y = y-4
+        x+=1
+        
+    x = 0
+    y = len(data3)
+    while (x < len(data3)):
+        data = str(data3)
+        while(y > 0):
+            try:
+                z = y-2
+                letter = chr(int(data[z:y],16))
+                name += letter
+                y = y-4
+            except:
+                break
+        x+=1
+
+    return name
 
 def gpt_partition_guid(data, data2):
     half = data[-8:] + "-" + data[-12:-8] + "-" + data[-16:-12] + "-"
