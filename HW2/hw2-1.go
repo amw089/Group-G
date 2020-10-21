@@ -15,7 +15,8 @@ import (
 // Global Variables //
 var DEBUG bool = false
 var SECTORSIZE int64 = 512
-var FILTER string = "JPG"
+var EXTENSIONFILTER string = "JPG"
+var NAMEFILTER string = "NORWAY"
 
 func main() {
 // Print Usage at the begining
@@ -233,32 +234,31 @@ func main() {
 // Setting the buffer to read 32 byte entries, and reading the first chunk
 		buffer = make([]byte, 32)
 		f.Read(buffer)
-// Recording the previous address to jump back after getting the file info and actual file. Every time we read, we add the number of bytes read
-		previousAddress := currSectAddress + 32
-// Itirate through all of the root 
-		
+// Recording the last entry address to jump back after getting the file info and actual file. 
+// Every time we read, we add the number of bytes read
+		lastEntryAddress := currSectAddress + 32
+// Itirate until the end of the file to look for all posible files with the filter provided in the global variables
 		for {
-			
+// Make a 32 byte buffer to read each entry. It has to be 32 bytes, that is why it's called FAT32 
 			buffer = make([]byte, 32)
 			_, err := f.Read(buffer)
 			if err != nil {
 				panic(err)	
 			}
-			previousAddress += 32
-			
+			lastEntryAddress += 32
+// Debugging, printing the entier 32 bytes
 			if DEBUG {
 				println("----------------------------------------------------")
 				fmt.Printf("32 byte chunk: %x\n", buffer)
 				println("----------------------------------------------------")
 			}
-			
+// Getting the name of the file and extension in the first slice of the buffer
 			name := fmt.Sprintf("%s", buffer[0:8])
 			extension := fmt.Sprintf("%s", buffer[8:11])
 			nameOfFile := name+"."+extension
-			
-
+// Getting the attributes that gives specifics of the entry (i.e file, subdirectory, ...)
 			attributes := buffer[11:12]
-
+// Getting the file cluster address. It is placed in 2 slices of the entry. They are in little endian.
 			FirstPartOfCluster := buffer[20:22]
 			str = DecodeHexString(FirstPartOfCluster) 	
 			x = ToLittleEndian(str,2)
@@ -266,28 +266,30 @@ func main() {
 			str = DecodeHexString(SecondPartOfCluster) 	
 			x += ToLittleEndian(str,2)
 			fileClusterAddress, err := strconv.ParseInt(x, 16, 64)
-			
-
+// Getting the size of the file in the last slice of the entry
 			chunk = buffer[28:32]
 			str = DecodeHexString(chunk) 	
 			x = ToLittleEndian(str,4)
 			sizeOfFile, err := strconv.ParseInt(x, 16, 64)
-
-			// need to change this filter
-			if extension != FILTER {
-				
+// This is done to filter the entries wanted for extracting.
+			if extension != EXTENSIONFILTER {
 				continue				
 			}
-
-			//Create list for FAT chain, empty wil be incremented dynamically
+			if nameOfFile[0:len(NAMEFILTER)] != NAMEFILTER {
+				continue				
+			}
+// Create list of clusters for FAT chain, It is empty, but will be incremented dynamically
+// Add the first cluster found in the file entry. Keep track of the current cluster 
 			var chain []int64 = make([]int64,0)
 			chain = append(chain, fileClusterAddress)
 			currentCluster := fileClusterAddress
-
+// Debugging, Printing the address in the FAT1 in bytes. 32*512=the start of the FAT1, currentcluster*4=the start of the chain, +offset=to get the address  
 			if DEBUG {
 				println("Address Jump to first cluster in chain of file: ",((32*bPERs)+(currentCluster*4))+int64(offset))
 			}
-
+// Seek to start of the cluster chain 
+// We iterate throught the FAT section of each file to append to the chains list
+// If we reach an EOF or zeros, break
 			for {
 				f.Seek(((32*bPERs)+(currentCluster*4))+int64(offset),0)
 				
@@ -308,21 +310,21 @@ func main() {
 				}
 				
 			}
-	//		fmt.Println("Chain array :", chain)
+			if DEBUG {
+				fmt.Println("Chain array :", chain)
+			}
+// Create a file to start appending the metadata of each file in the corresponding cluster		
 			recoveredFile, err1 := os.OpenFile(nameOfFile,os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 			if err1 != nil {
 	//			println(err1)
 			}
 			defer f.Close()
-			//Where I look for metadata
-
+// Some debugging
 			if DEBUG {
 				println("Address Jump to first cluster in chain of file: ",(512*((fileClusterAddress-clusterRootDir)+startSecAddRootDir))+int64(offset))
 			}
-
+// Where I look for metadata seeking each cluster of the file according to the chain list
 			for index := range chain {
-			//	println("Current cluster: ",chain[index])
-				
 				nextSectAddress := (chain[index]-clusterRootDir)+startSecAddRootDir
 				nextSectAddressInBytes := (nextSectAddress*512)+int64(offset)
 				f.Seek(nextSectAddressInBytes,0)
@@ -331,28 +333,24 @@ func main() {
 				if err != nil {
 					break	
 				}	
-
+// Print to the file appending
 				if _, err := recoveredFile.Write(buffer); err != nil {
-			//		println(err)
+// LOG				println(err)
 				}
 
 			}
-
-			//////////////
+///	Printing the info of each file entry ////////////
 			println("----------------------------------------------------")
 			fmt.Printf("Name: %s\n", nameOfFile)
 			fmt.Printf("Attributes: %x\n", attributes)
 			fmt.Printf("Start of File Cluster: %d\n", fileClusterAddress)
 			println("Size: ", sizeOfFile)
 			println("Ending Cluster Address of File: ", chain[len(chain)-2]+1)
-			
-			// Go back
-			previousAddress, err = f.Seek(previousAddress,0)
+// Go back to the previous address for the next file
+			lastEntryAddress, err = f.Seek(lastEntryAddress,0)
 			if err != nil {
 				panic(err)	
 			}
-
-		
 		}
 
 
