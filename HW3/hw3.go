@@ -102,49 +102,58 @@ offset := PrintOffsetUsage()
 //	
 	BeginSignatureBuffer := make([]byte, 3)
 	EndSignatureBuffer := make([]byte, 2)
-	previousAddress := startSecAddRootDir*512
+	NextAddress := startSecAddRootDir*bPERs
+	CurrentByteAddress := NextAddress
 
 		for {
 			// Start of data section
-			f.Seek(previousAddress,0)
-			nameOfFile := "file" + strconv.Itoa(int(previousAddress))+".jpg"
+			f.Seek(NextAddress,0)
+			nameOfFile := strconv.Itoa(int(NextAddress))+".jpg"
+			NextAddress += bPERs
 			_, err := f.Read(BeginSignatureBuffer)
 			if err != nil {
 				println("------------END OF ISO----------")
-	//			panic(err)	
+				panic(err)	
 			}
-			previousAddress += 3
+			CurrentByteAddress += 3
 			BeginSignature := DecodeHexString(BeginSignatureBuffer) 	
 
-			if BeginSignature == "FFD8FF" {
+			if strings.Contains(BeginSignature,"FFD8FF") {
 				recoveredFile, err := os.OpenFile(nameOfFile,os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 				if err != nil {
 					println("------------CANT OPEN FILE---------")
-	//				panic(err)	
+					panic(err)	
 				}
 				defer f.Close()
 //////
 				if _, err := recoveredFile.Write(BeginSignatureBuffer); err != nil {
 					println("------------CANT WRITE TO FILE---------")
-//					println(err)	
+					println(err)	
 				}
 
 				for {
-					_, err := f.Read(EndSignatureBuffer)
-					if err != nil { 
+					if _, err := f.Read(EndSignatureBuffer); err != nil { 
 						panic(err)	
 					}
+					EndSignature := DecodeHexString(EndSignatureBuffer)
 					if _, err := recoveredFile.Write(EndSignatureBuffer); err != nil {
 						println(err)
 					}
-					EndSignature := DecodeHexString(EndSignatureBuffer)
-					if EndSignature == "FFD9" {
+
+					if strings.Contains(EndSignature,"FFD8FF") {
+						NextAddress = CurrentByteAddress
+					//	os.Remove(nameOfFile)
+						break
+						
+					} else if strings.Contains(EndSignature,"FFD9") {
 						break
 					}
-
+					
+					CurrentByteAddress += 3
 				}
 				
 			} 
+			
 		}
 	}
 }
