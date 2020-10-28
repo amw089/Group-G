@@ -14,3 +14,6 @@ Homework 3:
 fileCarver.py runs with either -f or -d 
 -d : searches data section and finds 44 files (1 fragmented only first sector) files found denoted with file_at_-d.png
 -f: searches the FAT and finds 36 files (1 corrupted) files found denoted file_at_-f.png
+
+Challenge 3:
+Finds the files iterativly, I believe conflicting ending signaturs results in slightly corrupted text documents
