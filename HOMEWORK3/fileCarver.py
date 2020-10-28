@@ -12,7 +12,7 @@ DEBUG = True
 OFFSET = 0
 EXTENSION_FILTER = "JPG"
 BEGINING_SIGNATURE = "ffd8ff"
-END_SIGNATURE = "ffd9"
+END_SIGNATURE = "ffd90000"
 
 with open(filename, "rb") as iso_file:
 
@@ -75,12 +75,25 @@ with open(filename, "rb") as iso_file:
                 counter = 0
                 # read and write 1 bytes at a time until EOF indicator
                 while (1):
-                    # writes data to file iteratively
+                    if(previous_buffer1 + buffer1.hex() == "0000"):
+                        counter += 1
+                    else:
+                        counter = 0
+
+                    if (counter == 100):
+                        break
+                    # writes data to file 1 byte at a time
                     recovered_file.write(buffer1)
+
+                    # checks for end signature
                     iso_file.seek(current_byte)
                     buffer1 = iso_file.read(1)
                     current_byte += 1
-                    if(previous_buffer1 + buffer1.hex() == END_SIGNATURE):
+                    iso_file.seek(current_byte)
+                    next_buffer1 = iso_file.read(1)
+                    iso_file.seek(current_byte+1)
+                    next_next_buffer1 = iso_file.read(1)
+                    if(previous_buffer1 + buffer1.hex() + next_buffer1.hex() + next_next_buffer1.hex() == END_SIGNATURE):
                         break
                     previous_buffer1 = buffer1.hex()
 
@@ -88,6 +101,8 @@ with open(filename, "rb") as iso_file:
                 recovered_file.close()
             else:
                 current_byte += 3
+            
+            # files start at beginning of each 16 byte "line"
             if(current_byte % 16 == 0):
                 iso_file.seek(current_byte)
             else:
@@ -95,36 +110,58 @@ with open(filename, "rb") as iso_file:
                     current_byte += 1
                 iso_file.seek(current_byte)
 
-############### SCAN THE FAT ######################
+############################################## SCAN THE FATs ######################################################
     elif mode == "-f":
-        file_count = 1
-        # location of FAT table, skip header
-        current_byte = reserved_area_in_sectors * bytesPERsector + 8
-        current_cluster = 1
+        file_count = 0
+        # location of FAT table
+        start_of_FAT = reserved_area_in_sectors * bytesPERsector
+        #skip header
+        current_byte = start_of_FAT + 8
         while current_byte < (reserved_area_in_sectors + sectorsPERfat) * bytesPERsector:
             cluster_chain = []
             # build cluster chain
+            iso_file.seek(current_byte)
+            buffer = iso_file.read(4)
+            current_cluster = int.from_bytes(buffer, byteorder='little')
+            last_cluster = current_cluster
             while (1):
-                iso_file.seek(current_byte)
-                buffer = iso_file.read(4)
-                if(buffer.hex() != "00000000" and buffer.hex() != "ffffffff"):
+                # A pointer
+                if(buffer.hex() != "00000000" and buffer.hex() != "ffffffff" and buffer.hex() != "ffffff0f"):
                     current_cluster = int.from_bytes(buffer, byteorder='little')
                     cluster_chain.append(current_cluster)
-                else:
-                    current_byte += 16
+                    # navigate to new cluster
+                    current_byte = start_of_FAT + current_cluster * 4
+                    # continuous clusters
+                    # update the master counter
+                    if(last_cluster + 1 == current_cluster):
+                        last_byte = current_byte
+                # EOF signature
+                elif(buffer.hex() == "ffffff0f"):
                     break
-                current_byte += current_cluster * 4
+                # 00000000 or ffffffff
+                else:
+                    break
+                iso_file.seek(current_byte)
+                buffer = iso_file.read(4)
                 
-            print(cluster_chain)
-            # create file to save the recovered data
-            # iterate through cluser chain and jump to data location
-            recovered_file = open("file{}-f.JPG".format(file_count), "wb+")
-            for cluster in cluster_chain:
-                next_section_address = ((cluster - cluster_address_RD) + s_sector_address_RD)
-                next_section_address_bytes = next_section_address * bytesPERsector + OFFSET
-                iso_file.seek(next_section_address_bytes, 0)
-                buffer = iso_file.read(bytesPERsector)
-                recovered_file.write(buffer)
+            # assuming continuity is handled, go to next entry
+            current_byte += 16
+                            
+            if len(cluster_chain) > 0:
+                file_count += 1
+                print(len(cluster_chain))
+                #print(cluster_chain)
+                # create file to save the recovered data
+                # iterate through cluser chain and jump to data location
+                recovered_file = open("file{}_at_{}.JPG".format(file_count, ((cluster_chain[0] - cluster_address_RD) + s_sector_address_RD)*512), "wb+")
+                for cluster in cluster_chain:
+                    next_section_address = ((cluster - cluster_address_RD) + s_sector_address_RD) - 1
+                    next_section_address_bytes = next_section_address * bytesPERsector + OFFSET
+                    iso_file.seek(next_section_address_bytes, 0)
+                    buffer = iso_file.read(bytesPERsector)
+                    recovered_file.write(buffer)
+                    
+                    
 
             
     else:
