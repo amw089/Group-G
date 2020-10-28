@@ -44,7 +44,7 @@ with open(filename, "rb") as iso_file:
     s_sector_address_RD = numFATS * sectorsPERfat + reserved_area_in_sectors
     print("Starting Sector Address of the Data Section: {}".format(s_sector_address_RD))
 
-################ SCAN THE DATA SECTION #################
+######################################### SCAN THE DATA SECTION ##############################################################
     if mode == "-d":
         file_count = 0
         # skip to data section
@@ -63,7 +63,7 @@ with open(filename, "rb") as iso_file:
                 if DEBUG == True:
                     print("FILE FOUND at: {}".format(current_byte))
 
-                recovered_file = open("file{}_at_{}.JPG".format(file_count, current_byte), "wb+")
+                recovered_file = open("file{}_at_{}-d.JPG".format(file_count, current_byte), "wb+")
                 recovered_file.write(b'\xFF\xD8\xFF')
 
                 # read bytes after the starting signature
@@ -110,13 +110,14 @@ with open(filename, "rb") as iso_file:
                     current_byte += 1
                 iso_file.seek(current_byte)
 
-############################################## SCAN THE FATs ######################################################
+############################################## SCAN THE FAT ######################################################
     elif mode == "-f":
         file_count = 0
         # location of FAT table
         start_of_FAT = reserved_area_in_sectors * bytesPERsector
         #skip header
         current_byte = start_of_FAT + 8
+        # while in the FAT
         while current_byte < (reserved_area_in_sectors + sectorsPERfat) * bytesPERsector:
             cluster_chain = []
             # build cluster chain
@@ -125,35 +126,28 @@ with open(filename, "rb") as iso_file:
             current_cluster = int.from_bytes(buffer, byteorder='little')
             last_cluster = current_cluster
             while (1):
-                # A pointer
+                # An entry is found
                 if(buffer.hex() != "00000000" and buffer.hex() != "ffffffff" and buffer.hex() != "ffffff0f"):
                     current_cluster = int.from_bytes(buffer, byteorder='little')
                     cluster_chain.append(current_cluster)
                     # navigate to new cluster
                     current_byte = start_of_FAT + current_cluster * 4
-                    # continuous clusters
-                    # update the master counter
-                    if(last_cluster + 1 == current_cluster):
-                        last_byte = current_byte
-                # EOF signature
-                elif(buffer.hex() == "ffffff0f"):
-                    break
-                # 00000000 or ffffffff
+                # EOF signature or null bytes
                 else:
                     break
                 iso_file.seek(current_byte)
                 buffer = iso_file.read(4)
                 
             # assuming continuity is handled, go to next entry
-            current_byte += 16
+            current_byte += 4
                             
-            if len(cluster_chain) > 0:
+            if len(cluster_chain) > 1:
                 file_count += 1
-                print(len(cluster_chain))
-                #print(cluster_chain)
+                if DEBUG:
+                    print("last chain:",cluster_chain[len(cluster_chain)-1],"\tlen:",len(cluster_chain),'\tcurrent byte:', current_byte)
                 # create file to save the recovered data
                 # iterate through cluser chain and jump to data location
-                recovered_file = open("file{}_at_{}.JPG".format(file_count, ((cluster_chain[0] - cluster_address_RD) + s_sector_address_RD)*512), "wb+")
+                recovered_file = open("file{}_at_{}-f.JPG".format(file_count, cluster_chain[0]), "wb+")
                 for cluster in cluster_chain:
                     next_section_address = ((cluster - cluster_address_RD) + s_sector_address_RD) - 1
                     next_section_address_bytes = next_section_address * bytesPERsector + OFFSET
