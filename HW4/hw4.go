@@ -1,6 +1,8 @@
-///////////////////////////////
-
-///////////////////////////////
+//////////////////////////////////////////////
+// Anti-File-Hiding                       ////
+// This is a stripped down version of hw2 ////
+// New code in line 157                   ////
+//////////////////////////////////////////////
 
 package main
 
@@ -78,6 +80,7 @@ func main() {
 			str = DecodeHexString(chunk) 	
 			x = ToLittleEndian(str,4)
 			sizeOfFile, err := strconv.ParseInt(x, 16, 64)
+
             // This is done to filter the entries wanted for extracting.
 			if DecodeHexString(attributes) != "20" {
 				continue
@@ -221,17 +224,15 @@ func main() {
 			}
             ///	Printing the info of each file entry         ////////////
 			println("----------------------------------------------------")
-			if segmentTag == "" {
-				println(nameOfFile + " Error in header")
-			} else {
-				fmt.Printf("Name: %s\n",nameOfFile)
-				fmt.Printf("Extension: %s\n",extension)
-				fmt.Printf("Type: %s\n",segmentTag)
-				fmt.Printf("Attributes: %x\n", attributes)
-				fmt.Printf("Start of File Cluster: %d\n", fileClusterAddress)
-				println("Size: ", sizeOfFile)
-				println("Ending Cluster Address of File: ", chain[len(chain)-2]+1)
-			}
+			
+			fmt.Printf("Name: %s\n",nameOfFile)
+			fmt.Printf("Extension: %s\n",extension)
+			fmt.Printf("Type: %s\n",segmentTag)
+			fmt.Printf("Attributes: %x\n", attributes)
+			fmt.Printf("Start of File Cluster: %d\n", fileClusterAddress)
+			println("Size: ", sizeOfFile)
+			println("Ending Cluster Address of File: ", chain[len(chain)-2]+1)
+			
 			
             // Go back to the previous address for the next file
 			lastEntryAddress, err = f.Seek(lastEntryAddress,0)
@@ -239,9 +240,6 @@ func main() {
 				panic(err)	
 			}
 		}
-
-
-	
 	}
 
 func BootSectorInfo(buffer []byte) (int64,int64, int64) {
