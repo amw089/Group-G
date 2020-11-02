@@ -1,8 +1,33 @@
-from sys import *
+from difflib import SequenceMatcher
 
-filename = open("FAT_Imposter.iso", "rb")
+EXTENSION_FILTER = "JPG"
+SIGNATURES = [[b'\x47\x49\x46\x38\x39\x61',"GIF"],[b'\x25\x50\x44\x46\x2d',"PDF"],[b'\x89\x50\x4e\x47\x0d',"PNG"],[b'\xd0\xcf\x11\xe0\xa1',"DOC"],[b'\x50\x4b\x03\x04\x14\x00',"JAR"],[b'\x3c\x21\x44\x4f\x43\x54\x59\x50\x45',"HTML"],[b'\x46\x49\x46\x00',"JIF"],[b'\x45\x78\x69\x66',"EXIF"],[b'\x53\x50\x49\x46\x46',"SPIFF"]]
+DEBUG = True
 
-buffer = filename.read(512)
+def CompareSignatures( header ):
+    signatureOptions = [0,""]
+    signaturePrediction = [b'\x00\x00\x00',"Unknown"]
+    for signature in SIGNATURES:
+        seq = SequenceMatcher(a=header, b=signature[0].hex())
+        if seq.ratio() > 0.20:
+            if seq.ratio() > signatureOptions[0]:
+                if DEBUG:
+                    print(header)
+                    print(signature)
+                    print(seq.ratio())
+                signatureOptions = [seq.ratio(),signature[1]]
+                signaturePrediction = signature  
+    
+    print("\n************************************")
+    print("Predicting file signature: {}".format(signaturePrediction))
+    print("************************************")
+
+    return signaturePrediction
+
+
+file = open("FAT_Imposter.iso", "rb")
+
+buffer = file.read(512)
 bytesPERsector = int.from_bytes(buffer[11:13], byteorder='little')
 print("Bytes/Sector: {}".format(bytesPERsector))
 sectorsPERcluster = int.from_bytes(buffer[13:14], byteorder='little')
@@ -19,12 +44,12 @@ print("Cluster Address of Root Directory: {}".format(cluster_address_RD))
 s_sector_address_RD = numFATs * secPerFAT + sizeReserved
 print("Starting Sector Address of the Data Section: {}".format(s_sector_address_RD))
 
-length = len(filename.read())
+length = len(file.read())
 current_byte = s_sector_address_RD * bytesPERsector
-filename.seek(current_byte)
+file.seek(current_byte)
 
 while current_byte < length:
-    buffer = filename.read(32)
+    buffer = file.read(32)
     current_byte += 32
     attributes = buffer[11:12].hex()
     if attributes == "20":
@@ -39,7 +64,7 @@ while current_byte < length:
         except:
             continue
         
-        if extension != "JPG":
+        if extension != EXTENSION_FILTER:
             continue
 
         cluster_chain = []
@@ -47,8 +72,8 @@ while current_byte < length:
         current_cluster = file_cluster_address
        
         while True:
-            filename.seek((sizeReserved * bytesPERsector) + (current_cluster * 4))
-            buffer = filename.read(4)
+            file.seek((sizeReserved * bytesPERsector) + (current_cluster * 4))
+            buffer = file.read(4)
             current_cluster = int.from_bytes(buffer, byteorder='little')
             cluster_chain.append(current_cluster)
             if buffer.hex() == "00000000" or buffer.hex() == "ffffff0f":
@@ -58,52 +83,33 @@ while current_byte < length:
         for i in range(len(cluster_chain)):
             next_section_address = ((cluster_chain[i] - cluster_address_RD) + s_sector_address_RD)
             next_section_address_bytes = next_section_address * bytesPERsector
-            filename.seek(next_section_address_bytes, 0)
-            buffer = filename.read(bytesPERsector)
+            file.seek(next_section_address_bytes, 0)
+            buffer = file.read(bytesPERsector)
             if i == 0:
                 FileHeader = buffer[:16].hex()
-                if FileHeader.find("383961") == 6:
-                    segmentTag = "GIF"
-                    recovered_file.write(b'\x47\x49\x46')
-                    buffer = buffer[3:]
-                elif FileHeader.find("462d") == 6:
-                    segmentTag = "PDF"
-                    recovered_file.write(b'\x25\x50\x44')
-                    buffer = buffer[3:]
-                elif FileHeader.find("470d") == 6:
-                    segmentTag = "PNG"
-                    recovered_file.write(b'\x89\x50\x4e')
-                    buffer = buffer[3:]
-                elif FileHeader.find("e0a1") == 6:
-                    segmentTag = "DOC"
-                    recovered_file.write(b'\xd0\xcf\x11')
-                    buffer = buffer[3:]
-                elif FileHeader.find("041400") == 6:
-                    segmentTag = "JAR"
-                    recovered_file.write(b'\x50\x4b\x03')
-                    buffer = buffer[3:]
-                elif FileHeader.find("4f4354595045") == 6:
-                    segmentTag = "HTML"
-                    recovered_file.write(b'\x3c\x21\x44')
-                    buffer = buffer[3:]
-                elif "4a46494600" in FileHeader:
+                if "4a46494600" in FileHeader:
                     segmentTag = "JIF"
                 elif "4578696600" in FileHeader:
                     segmentTag = "EXIF"
                 elif "535049464600" in FileHeader:
                     segmentTag = "SPIFF"
                 else:
-                    segmentTag = "UNKNOWN"
+                    SignaturePrediction = CompareSignatures(FileHeader[:16])
+                    segmentTag = SignaturePrediction[1]
+                    recovered_file.write(SignaturePrediction[0])
+                    buffer = buffer[len(SignaturePrediction[0]):]
+                
+                
 
             recovered_file.write(buffer)
 
 
-        print("-----------------------------------------")
         print("Name: {}".format(nameOfFile) )
         print("Extension: {}".format(extension))
         print("Type: {}".format(segmentTag))
         print("Attributes: {}".format(attributes))
         print("Cluster Address: {}".format(file_cluster_address))
         print("Size: {}".format(size_of_file))
-       
-        filename.seek(current_byte)
+        print("-----------------------------------------")
+
+        file.seek(current_byte)
